@@ -31,11 +31,15 @@ export async function getIdFromDatabase(
 	return dbMatch;
 }
 
+export function buildId(segments: (string | number | undefined)[]) {
+	return segments.filter((s) => s !== undefined).join(":");
+}
+
 export async function getIdsFromDatabase(
 	mediaType: MediaType,
 	idSegments: [number, number?, number?][],
 ) {
-	const typedIds = idSegments.map((id) => [mediaType, ...id].join(":"));
+	const typedIds = idSegments.map((id) => buildId([mediaType, ...id]));
 	const dbMatch = await prisma.tmdbImdb.findMany({
 		where: { tmdb: { in: typedIds } },
 	});
@@ -50,15 +54,36 @@ export async function getIdsFromDatabase(
 	);
 }
 
+export type DbUpsert = {
+	tmdb: [number, number?, number?];
+	imdb: [string, number?, number?];
+};
+
+function buildUpsert(mediaType: MediaType, data: DbUpsert) {
+	const tmdb = buildId([mediaType, ...data.tmdb]);
+	const imdb = buildId(data.imdb);
+
+	const request = prisma.tmdbImdb.upsert({
+		where: {
+			tmdb: tmdb,
+		},
+		create: {
+			tmdb,
+			imdb,
+		},
+		update: {
+			imdb,
+		},
+	});
+
+	return request;
+}
+
 export async function addIdToDatabase(
 	mediaType: MediaType,
 	data: { tmdb: [number, number?, number?]; imdb: [string, number?, number?] },
 ) {
-	const tmdb = [mediaType, ...data.tmdb].join(":");
-	const imdb = data.imdb.join(":");
-	return await prisma.tmdbImdb.create({
-		data: { tmdb, imdb },
-	});
+	return await buildUpsert(mediaType, data);
 }
 
 export async function addIdsToDatabase(
@@ -68,12 +93,6 @@ export async function addIdsToDatabase(
 		imdb: [string, number?, number?];
 	}[],
 ) {
-	const typedData = data.map((d) => ({
-		tmdb: [mediaType, ...d.tmdb].join(":"),
-		imdb: d.imdb.join(":"),
-	}));
-
-	await prisma.tmdbImdb.createMany({ data: typedData });
-
-	return typedData;
+	const requests = data.map((d) => buildUpsert(mediaType, d));
+	return await prisma.$transaction(requests);
 }
