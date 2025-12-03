@@ -286,9 +286,7 @@ export async function getSeasonFromTmdb(
 	return imdbSeason.map((e, i) => {
 		if (Array.isArray(e)) {
 			const entryIndex = newEntries?.findIndex((n) => n.idx === i);
-			return entryIndex !== undefined && entryIndex >= 0
-				? newEntryIds[entryIndex]
-				: undefined;
+			return entryIndex !== undefined ? newEntryIds[entryIndex] : undefined;
 		}
 		return e ? { tmdb: e.tmdb, imdb: e.imdb } : undefined;
 	});
