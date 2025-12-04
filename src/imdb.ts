@@ -218,6 +218,9 @@ const TitleQuery = graphql(`
 
 async function getAllEpisodes(t: Title, filter?: EpisodesFilter) {
 	const e = t.episodes?.episodes;
+	if (!e) {
+		return;
+	}
 	let next = e?.pageInfo?.hasNextPage ? e.pageInfo.endCursor : undefined;
 	while (next) {
 		const nextEpisodes = await client.query(GetMoreEpisodesQuery, {
@@ -228,10 +231,8 @@ async function getAllEpisodes(t: Title, filter?: EpisodesFilter) {
 		const n = nextEpisodes?.data?.title?.episodes
 			?.episodes as EpisodeConnection;
 		e?.edges.push(...(n?.edges || []));
+		e.pageInfo = n.pageInfo;
 		next = n?.pageInfo.hasNextPage ? n.pageInfo.endCursor : undefined;
-	}
-	if (e?.pageInfo) {
-		e.pageInfo.hasNextPage = false;
 	}
 }
 
