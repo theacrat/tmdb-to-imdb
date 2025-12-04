@@ -299,11 +299,16 @@ export async function getSeriesFromTmdb(series: number) {
 		return;
 	}
 
-	const imdbSeries = await Promise.all(
-		tmdbSeries.seasons.map((s) =>
-			getSeasonFromTmdb(series, s.season_number, tmdbSeries, fullSeries),
-		),
-	);
+	const imdbSeries = [];
+	for (const s of tmdbSeries.seasons) {
+		const season = await getSeasonFromTmdb(
+			series,
+			s.season_number,
+			tmdbSeries,
+			fullSeries,
+		);
+		imdbSeries.push(season);
+	}
 
 	return imdbSeries;
 }
