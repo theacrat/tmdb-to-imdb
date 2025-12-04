@@ -45,16 +45,7 @@ export async function getIdFromDatabase(
 ): Promise<DbResult | undefined> {
 	const [title, season, episode] = segments;
 
-	const result = await prisma.$queryRawUnsafe<
-		{
-			mediaType: string;
-			title: number;
-			season: number;
-			episode: number;
-			imdb: string;
-			updatedAt: Date;
-		}[]
-	>(
+	const result = await prisma.$queryRawUnsafe<TmdbImdb[]>(
 		`SELECT * FROM "TmdbImdb" WHERE "mediaType" = ? AND "title" = ? AND "season" = ? AND "episode" = ? LIMIT 1`,
 		mediaType,
 		title,
@@ -68,9 +59,7 @@ export async function getIdFromDatabase(
 		return;
 	}
 
-	return dbMatch
-		? dbRecordToResult({ ...dbMatch, mediaType: mediaType as MediaType })
-		: undefined;
+	return dbRecordToResult({ ...dbMatch, mediaType: mediaType as MediaType });
 }
 
 export function buildId(segments: (string | number | undefined)[]) {
@@ -80,22 +69,16 @@ export function buildId(segments: (string | number | undefined)[]) {
 export async function getIdsFromDatabase(
 	mediaType: MediaType,
 	idSegments: TmdbId[],
+	episodesData?: { air_date: string }[],
 ): Promise<(DbResult | undefined)[]> {
 	const queries = idSegments.map(([title, season, episode]) => ({
 		mediaType,
 		title,
-		season: season ?? 0,
-		episode: episode ?? 0,
+		season: season,
+		episode: episode,
 	}));
-	// D1 has 100 param limit, 4 params per query = 24 max
-	const allMatches: {
-		mediaType: MediaType;
-		title: number;
-		season: number;
-		episode: number;
-		imdb: string;
-		updatedAt: Date;
-	}[] = [];
+
+	const allMatches: TmdbImdb[] = [];
 
 	const batches = Array.from(
 		{ length: Math.ceil(queries.length / batchSize) },
@@ -111,7 +94,7 @@ export async function getIdsFromDatabase(
 		}),
 	);
 
-	return queries.map((query) => {
+	return queries.map((query, idx) => {
 		const match = allMatches.find(
 			(d) =>
 				d.mediaType === query.mediaType &&
@@ -119,7 +102,20 @@ export async function getIdsFromDatabase(
 				d.season === query.season &&
 				d.episode === query.episode,
 		);
-		return match ? dbRecordToResult(match) : undefined;
+
+		if (!match) {
+			return undefined;
+		}
+
+		if (episodesData?.[idx]?.air_date) {
+			const airDate = new Date(episodesData[idx].air_date);
+			const updatedAt = new Date(match.updatedAt);
+			if (airDate >= updatedAt) {
+				return undefined;
+			}
+		}
+
+		return dbRecordToResult(match);
 	});
 }
 
@@ -137,15 +133,15 @@ function buildUpsert(mediaType: MediaType, data: DbUpsert) {
 			mediaType_title_season_episode: {
 				mediaType,
 				title,
-				season: season ?? 0,
-				episode: episode ?? 0,
+				season: season,
+				episode: episode,
 			},
 		},
 		create: {
 			mediaType,
 			title,
-			season: season ?? 0,
-			episode: episode ?? 0,
+			season: season,
+			episode: episode,
 			imdb,
 		},
 		update: {
@@ -175,8 +171,8 @@ export async function addIdsToDatabase(
 		return {
 			mediaType,
 			title,
-			season: season ?? 0,
-			episode: episode ?? 0,
+			season: season,
+			episode: episode,
 			imdb: buildId(d.imdb) || "",
 		};
 	});
@@ -199,14 +195,7 @@ export async function addIdsToDatabase(
 		episode: r.episode,
 	}));
 
-	const allMatches: {
-		mediaType: MediaType;
-		title: number;
-		season: number;
-		episode: number;
-		imdb: string;
-		updatedAt: Date;
-	}[] = [];
+	const allMatches: TmdbImdb[] = [];
 
 	const batches = Array.from(
 		{ length: Math.ceil(queries.length / batchSize) },

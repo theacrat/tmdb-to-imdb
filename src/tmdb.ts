@@ -215,6 +215,7 @@ export async function getSeasonFromTmdb(
 	const dbMatch = await getIdsFromDatabase(
 		"E",
 		tmdbSeason.episodes.map((e) => [series, season, e.episode_number]),
+		tmdbSeason.episodes,
 	);
 
 	if (!tmdbSeries && !imdbSeries) {
@@ -222,8 +223,8 @@ export async function getSeasonFromTmdb(
 	}
 
 	const imdbSeason = await Promise.all(
-		tmdbSeason.episodes.map(
-			(e, idx) =>
+		tmdbSeason.episodes.map((e, idx) => {
+			return (
 				dbMatch[idx] ||
 				limit(() =>
 					getEpisodeFromTmdb(
@@ -233,8 +234,9 @@ export async function getSeasonFromTmdb(
 						tmdbSeries,
 						imdbSeries,
 					),
-				),
-		),
+				)
+			);
+		}),
 	);
 
 	const firstMatch = imdbSeason.find((e) => Array.isArray(e));
