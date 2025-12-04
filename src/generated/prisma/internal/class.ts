@@ -20,7 +20,7 @@ const config: runtime.GetPrismaClientConfig = {
   "clientVersion": "7.0.1",
   "engineVersion": "f09f2815f091dbba658cdcd2264306d88bb5bda6",
   "activeProvider": "sqlite",
-  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\n// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?\n// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init\n\ngenerator client {\n  provider   = \"prisma-client\"\n  output     = \"../src/generated/prisma\"\n  runtime    = \"workerd\"\n  engineType = \"client\"\n}\n\ndatasource db {\n  provider = \"sqlite\"\n}\n\nmodel TmdbImdb {\n  tmdb      String   @id\n  imdb      String\n  updatedAt DateTime @updatedAt\n}\n",
+  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\n// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?\n// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init\n\ngenerator client {\n  provider = \"prisma-client\"\n  output   = \"../src/generated/prisma\"\n  runtime  = \"workerd\"\n}\n\ndatasource db {\n  provider = \"sqlite\"\n}\n\nenum MediaType {\n  E // episode\n  M // movie\n}\n\nmodel TmdbImdb {\n  mediaType MediaType\n  title     Int\n  season    Int       @default(0)\n  episode   Int       @default(0)\n  imdb      String\n  updatedAt DateTime  @updatedAt\n\n  @@id([mediaType, title, season, episode])\n}\n",
   "runtimeDataModel": {
     "models": {},
     "enums": {},
@@ -28,7 +28,7 @@ const config: runtime.GetPrismaClientConfig = {
   }
 }
 
-config.runtimeDataModel = JSON.parse("{\"models\":{\"TmdbImdb\":{\"fields\":[{\"name\":\"tmdb\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"imdb\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"}],\"dbName\":null}},\"enums\":{},\"types\":{}}")
+config.runtimeDataModel = JSON.parse("{\"models\":{\"TmdbImdb\":{\"fields\":[{\"name\":\"mediaType\",\"kind\":\"enum\",\"type\":\"MediaType\"},{\"name\":\"title\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"season\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"episode\",\"kind\":\"scalar\",\"type\":\"Int\"},{\"name\":\"imdb\",\"kind\":\"scalar\",\"type\":\"String\"},{\"name\":\"updatedAt\",\"kind\":\"scalar\",\"type\":\"DateTime\"}],\"dbName\":null}},\"enums\":{},\"types\":{}}")
 config.compilerWasm = {
   getRuntime: async () => await import("./query_compiler_bg.js"),
 

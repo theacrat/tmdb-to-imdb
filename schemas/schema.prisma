@@ -14,8 +14,18 @@ datasource db {
   provider = "sqlite"
 }
 
+enum MediaType {
+  E // episode
+  M // movie
+}
+
 model TmdbImdb {
-  tmdb      String   @id
+  mediaType MediaType
+  title     Int
+  season    Int       @default(0)
+  episode   Int       @default(0)
   imdb      String
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime  @updatedAt
+
+  @@id([mediaType, title, season, episode])
 }

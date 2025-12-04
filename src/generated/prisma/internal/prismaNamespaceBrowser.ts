@@ -68,7 +68,10 @@ export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof
 
 
 export const TmdbImdbScalarFieldEnum = {
-  tmdb: 'tmdb',
+  mediaType: 'mediaType',
+  title: 'title',
+  season: 'season',
+  episode: 'episode',
   imdb: 'imdb',
   updatedAt: 'updatedAt'
 } as const

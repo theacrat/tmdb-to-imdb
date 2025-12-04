@@ -25,6 +25,7 @@
 		"@urql/core": "^6.0.1",
 		"graphql": "^16.12.0",
 		"hono": "^4.10.7",
+		"p-limit": "^7.2.0",
 		"tmdb-ts": "^2.0.3"
 	},
 	"devDependencies": {

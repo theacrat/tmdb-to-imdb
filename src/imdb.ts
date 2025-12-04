@@ -2,12 +2,15 @@ import { graphql } from "./generated/graphql/gql";
 import {
 	DisplayableEpisodeNumber,
 	EpisodeConnection,
+	EpisodesFilter,
 	MainSearchOptions,
 	MainSearchTitleType,
 	MainSearchType,
 	Title,
 } from "./generated/graphql/graphql";
 import { Client, cacheExchange, fetchExchange } from "@urql/core";
+
+export type ImdbId = [string, number?, number?];
 
 const client = new Client({
 	url: "https://api.graphql.imdb.com/",
@@ -34,9 +37,13 @@ export function getSeasonAndEpisode(
 
 	if (season === "unknown") {
 		season = "0";
-		const episodeIdx = (episodeList.edges || []).findIndex(
-			(e) => e?.node.id === episodeData.id,
-		);
+		const episodeIdx = (episodeList.edges || [])
+			.filter(
+				(e) =>
+					e?.node.series?.displayableEpisodeNumber?.displayableSeason.text ===
+					"unknown",
+			)
+			.findIndex((e) => e?.node.id === episodeData.id);
 		if (episodeIdx === -1) {
 			return undefined;
 		}
@@ -48,6 +55,34 @@ export function getSeasonAndEpisode(
 const GetMoreEpisodesQuery = graphql(`
 	query GetMoreEpisodes($id: ID!, $episodeFilter: EpisodesFilter, $after: ID!) {
 		title(id: $id) {
+			episodes {
+				episodes(
+					filter: $episodeFilter
+					sort: { by: EPISODE_THEN_RELEASE, order: ASC }
+					first: 500
+					after: $after
+				) {
+					edges {
+						node {
+							id
+							series {
+								displayableEpisodeNumber {
+									displayableSeason {
+										text
+									}
+									episodeNumber {
+										text
+									}
+								}
+							}
+						}
+					}
+					pageInfo {
+						endCursor
+						hasNextPage
+					}
+				}
+			}
 			series {
 				series {
 					episodes {
@@ -181,6 +216,25 @@ const TitleQuery = graphql(`
 	}
 `);
 
+async function getAllEpisodes(t: Title, filter?: EpisodesFilter) {
+	const e = t.episodes?.episodes;
+	let next = e?.pageInfo?.hasNextPage ? e.pageInfo.endCursor : undefined;
+	while (next) {
+		const nextEpisodes = await client.query(GetMoreEpisodesQuery, {
+			id: t.id,
+			after: next,
+			episodeFilter: filter,
+		});
+		const n = nextEpisodes?.data?.title?.episodes
+			?.episodes as EpisodeConnection;
+		e?.edges.push(...(n?.edges || []));
+		next = n?.pageInfo.hasNextPage ? n.pageInfo.endCursor : undefined;
+	}
+	if (e?.pageInfo) {
+		e.pageInfo.hasNextPage = false;
+	}
+}
+
 export async function getSeriesFromTmdbImdbId(imdbId: string) {
 	const r = await client.query(TitleQuery, {
 		id: imdbId,
@@ -191,25 +245,14 @@ export async function getSeriesFromTmdbImdbId(imdbId: string) {
 		return;
 	}
 
-	const e = t.episodes?.episodes;
-
-	let next = e?.pageInfo?.hasNextPage ? e.pageInfo.endCursor : undefined;
-	while (next) {
-		const nextEpisodes = await client.query(GetMoreEpisodesQuery, {
-			id: t.id,
-			after: next,
-		});
-		const n = nextEpisodes?.data?.title?.series?.series.episodes?.episodes;
-		e?.edges.push(...(n?.edges || []));
-		next = n?.pageInfo.hasNextPage ? n.pageInfo.endCursor : undefined;
-	}
+	await getAllEpisodes(t as Title);
 
 	return t;
 }
 
 export async function getTitleFromId(
 	titleId: string,
-): Promise<[string, number?, number?] | undefined> {
+): Promise<ImdbId | undefined> {
 	const r = await client.query(TitleQuery, {
 		id: titleId,
 		episodeFilter: { includeSeasons: ["unknown"] },
@@ -227,16 +270,8 @@ export async function getTitleFromId(
 
 	const e = s.series.episodes?.episodes;
 
-	let next = e?.pageInfo?.hasNextPage ? e.pageInfo.endCursor : undefined;
-	while (next) {
-		const nextEpisodes = await client.query(GetMoreEpisodesQuery, {
-			id: s.series.id,
-			after: next,
-			episodeFilter: { includeSeasons: ["unknown"] },
-		});
-		const n = nextEpisodes?.data?.title?.series?.series.episodes?.episodes;
-		e?.edges.push(...(n?.edges || []));
-		next = n?.pageInfo.hasNextPage ? n.pageInfo.endCursor : undefined;
+	if (s.displayableEpisodeNumber.displayableSeason.text === "unknown") {
+		await getAllEpisodes(s.series as Title, { includeSeasons: ["unknown"] });
 	}
 
 	const seasonAndEpisode = getSeasonAndEpisode(
@@ -324,7 +359,7 @@ export async function getTitleFromTmdbData(title: {
 	name: string;
 	overview: string | null;
 	runtime: number;
-}): Promise<[string, number?, number?] | undefined> {
+}): Promise<ImdbId | undefined> {
 	const tmdbAirDate = title.air_date
 		? new Date(Date.parse(title.air_date))
 		: new Date(0, 0, 0);
@@ -436,16 +471,8 @@ export async function getTitleFromTmdbData(title: {
 
 	const e = s.series.episodes?.episodes;
 
-	let next = e?.pageInfo?.hasNextPage ? e.pageInfo.endCursor : undefined;
-	while (next) {
-		const nextEpisodes = await client.query(GetMoreEpisodesQuery, {
-			id: s.series.id,
-			after: next,
-			episodeFilter: { includeSeasons: ["unknown"] },
-		});
-		const n = nextEpisodes?.data?.title?.series?.series.episodes?.episodes;
-		e?.edges.push(...(n?.edges || []));
-		next = n?.pageInfo.hasNextPage ? n.pageInfo.endCursor : undefined;
+	if (s.displayableEpisodeNumber.displayableSeason.text === "unknown") {
+		await getAllEpisodes(s.series as Title, { includeSeasons: ["unknown"] });
 	}
 
 	const seasonAndEpisode = getSeasonAndEpisode(

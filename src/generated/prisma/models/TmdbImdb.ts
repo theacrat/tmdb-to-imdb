@@ -20,44 +20,88 @@ export type TmdbImdbModel = runtime.Types.Result.DefaultSelection<Prisma.$TmdbIm
 
 export type AggregateTmdbImdb = {
   _count: TmdbImdbCountAggregateOutputType | null
+  _avg: TmdbImdbAvgAggregateOutputType | null
+  _sum: TmdbImdbSumAggregateOutputType | null
   _min: TmdbImdbMinAggregateOutputType | null
   _max: TmdbImdbMaxAggregateOutputType | null
 }
 
+export type TmdbImdbAvgAggregateOutputType = {
+  title: number | null
+  season: number | null
+  episode: number | null
+}
+
+export type TmdbImdbSumAggregateOutputType = {
+  title: number | null
+  season: number | null
+  episode: number | null
+}
+
 export type TmdbImdbMinAggregateOutputType = {
-  tmdb: string | null
+  mediaType: $Enums.MediaType | null
+  title: number | null
+  season: number | null
+  episode: number | null
   imdb: string | null
   updatedAt: Date | null
 }
 
 export type TmdbImdbMaxAggregateOutputType = {
-  tmdb: string | null
+  mediaType: $Enums.MediaType | null
+  title: number | null
+  season: number | null
+  episode: number | null
   imdb: string | null
   updatedAt: Date | null
 }
 
 export type TmdbImdbCountAggregateOutputType = {
-  tmdb: number
+  mediaType: number
+  title: number
+  season: number
+  episode: number
   imdb: number
   updatedAt: number
   _all: number
 }
 
 
+export type TmdbImdbAvgAggregateInputType = {
+  title?: true
+  season?: true
+  episode?: true
+}
+
+export type TmdbImdbSumAggregateInputType = {
+  title?: true
+  season?: true
+  episode?: true
+}
+
 export type TmdbImdbMinAggregateInputType = {
-  tmdb?: true
+  mediaType?: true
+  title?: true
+  season?: true
+  episode?: true
   imdb?: true
   updatedAt?: true
 }
 
 export type TmdbImdbMaxAggregateInputType = {
-  tmdb?: true
+  mediaType?: true
+  title?: true
+  season?: true
+  episode?: true
   imdb?: true
   updatedAt?: true
 }
 
 export type TmdbImdbCountAggregateInputType = {
-  tmdb?: true
+  mediaType?: true
+  title?: true
+  season?: true
+  episode?: true
   imdb?: true
   updatedAt?: true
   _all?: true
@@ -101,6 +145,18 @@ export type TmdbImdbAggregateArgs<ExtArgs extends runtime.Types.Extensions.Inter
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: TmdbImdbAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: TmdbImdbSumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: TmdbImdbMinAggregateInputType
@@ -131,15 +187,22 @@ export type TmdbImdbGroupByArgs<ExtArgs extends runtime.Types.Extensions.Interna
   take?: number
   skip?: number
   _count?: TmdbImdbCountAggregateInputType | true
+  _avg?: TmdbImdbAvgAggregateInputType
+  _sum?: TmdbImdbSumAggregateInputType
   _min?: TmdbImdbMinAggregateInputType
   _max?: TmdbImdbMaxAggregateInputType
 }
 
 export type TmdbImdbGroupByOutputType = {
-  tmdb: string
+  mediaType: $Enums.MediaType
+  title: number
+  season: number
+  episode: number
   imdb: string
   updatedAt: Date
   _count: TmdbImdbCountAggregateOutputType | null
+  _avg: TmdbImdbAvgAggregateOutputType | null
+  _sum: TmdbImdbSumAggregateOutputType | null
   _min: TmdbImdbMinAggregateOutputType | null
   _max: TmdbImdbMaxAggregateOutputType | null
 }
@@ -163,102 +226,181 @@ export type TmdbImdbWhereInput = {
   AND?: Prisma.TmdbImdbWhereInput | Prisma.TmdbImdbWhereInput[]
   OR?: Prisma.TmdbImdbWhereInput[]
   NOT?: Prisma.TmdbImdbWhereInput | Prisma.TmdbImdbWhereInput[]
-  tmdb?: Prisma.StringFilter<"TmdbImdb"> | string
+  mediaType?: Prisma.EnumMediaTypeFilter<"TmdbImdb"> | $Enums.MediaType
+  title?: Prisma.IntFilter<"TmdbImdb"> | number
+  season?: Prisma.IntFilter<"TmdbImdb"> | number
+  episode?: Prisma.IntFilter<"TmdbImdb"> | number
   imdb?: Prisma.StringFilter<"TmdbImdb"> | string
   updatedAt?: Prisma.DateTimeFilter<"TmdbImdb"> | Date | string
 }
 
 export type TmdbImdbOrderByWithRelationInput = {
-  tmdb?: Prisma.SortOrder
+  mediaType?: Prisma.SortOrder
+  title?: Prisma.SortOrder
+  season?: Prisma.SortOrder
+  episode?: Prisma.SortOrder
   imdb?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
 
 export type TmdbImdbWhereUniqueInput = Prisma.AtLeast<{
-  tmdb?: string
+  mediaType_title_season_episode?: Prisma.TmdbImdbMediaTypeTitleSeasonEpisodeCompoundUniqueInput
   AND?: Prisma.TmdbImdbWhereInput | Prisma.TmdbImdbWhereInput[]
   OR?: Prisma.TmdbImdbWhereInput[]
   NOT?: Prisma.TmdbImdbWhereInput | Prisma.TmdbImdbWhereInput[]
+  mediaType?: Prisma.EnumMediaTypeFilter<"TmdbImdb"> | $Enums.MediaType
+  title?: Prisma.IntFilter<"TmdbImdb"> | number
+  season?: Prisma.IntFilter<"TmdbImdb"> | number
+  episode?: Prisma.IntFilter<"TmdbImdb"> | number
   imdb?: Prisma.StringFilter<"TmdbImdb"> | string
   updatedAt?: Prisma.DateTimeFilter<"TmdbImdb"> | Date | string
-}, "tmdb">
+}, "mediaType_title_season_episode">
 
 export type TmdbImdbOrderByWithAggregationInput = {
-  tmdb?: Prisma.SortOrder
+  mediaType?: Prisma.SortOrder
+  title?: Prisma.SortOrder
+  season?: Prisma.SortOrder
+  episode?: Prisma.SortOrder
   imdb?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.TmdbImdbCountOrderByAggregateInput
+  _avg?: Prisma.TmdbImdbAvgOrderByAggregateInput
   _max?: Prisma.TmdbImdbMaxOrderByAggregateInput
   _min?: Prisma.TmdbImdbMinOrderByAggregateInput
+  _sum?: Prisma.TmdbImdbSumOrderByAggregateInput
 }
 
 export type TmdbImdbScalarWhereWithAggregatesInput = {
   AND?: Prisma.TmdbImdbScalarWhereWithAggregatesInput | Prisma.TmdbImdbScalarWhereWithAggregatesInput[]
   OR?: Prisma.TmdbImdbScalarWhereWithAggregatesInput[]
   NOT?: Prisma.TmdbImdbScalarWhereWithAggregatesInput | Prisma.TmdbImdbScalarWhereWithAggregatesInput[]
-  tmdb?: Prisma.StringWithAggregatesFilter<"TmdbImdb"> | string
+  mediaType?: Prisma.EnumMediaTypeWithAggregatesFilter<"TmdbImdb"> | $Enums.MediaType
+  title?: Prisma.IntWithAggregatesFilter<"TmdbImdb"> | number
+  season?: Prisma.IntWithAggregatesFilter<"TmdbImdb"> | number
+  episode?: Prisma.IntWithAggregatesFilter<"TmdbImdb"> | number
   imdb?: Prisma.StringWithAggregatesFilter<"TmdbImdb"> | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"TmdbImdb"> | Date | string
 }
 
 export type TmdbImdbCreateInput = {
-  tmdb: string
+  mediaType: $Enums.MediaType
+  title: number
+  season?: number
+  episode?: number
   imdb: string
   updatedAt?: Date | string
 }
 
 export type TmdbImdbUncheckedCreateInput = {
-  tmdb: string
+  mediaType: $Enums.MediaType
+  title: number
+  season?: number
+  episode?: number
   imdb: string
   updatedAt?: Date | string
 }
 
 export type TmdbImdbUpdateInput = {
-  tmdb?: Prisma.StringFieldUpdateOperationsInput | string
+  mediaType?: Prisma.EnumMediaTypeFieldUpdateOperationsInput | $Enums.MediaType
+  title?: Prisma.IntFieldUpdateOperationsInput | number
+  season?: Prisma.IntFieldUpdateOperationsInput | number
+  episode?: Prisma.IntFieldUpdateOperationsInput | number
   imdb?: Prisma.StringFieldUpdateOperationsInput | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type TmdbImdbUncheckedUpdateInput = {
-  tmdb?: Prisma.StringFieldUpdateOperationsInput | string
+  mediaType?: Prisma.EnumMediaTypeFieldUpdateOperationsInput | $Enums.MediaType
+  title?: Prisma.IntFieldUpdateOperationsInput | number
+  season?: Prisma.IntFieldUpdateOperationsInput | number
+  episode?: Prisma.IntFieldUpdateOperationsInput | number
   imdb?: Prisma.StringFieldUpdateOperationsInput | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type TmdbImdbCreateManyInput = {
-  tmdb: string
+  mediaType: $Enums.MediaType
+  title: number
+  season?: number
+  episode?: number
   imdb: string
   updatedAt?: Date | string
 }
 
 export type TmdbImdbUpdateManyMutationInput = {
-  tmdb?: Prisma.StringFieldUpdateOperationsInput | string
+  mediaType?: Prisma.EnumMediaTypeFieldUpdateOperationsInput | $Enums.MediaType
+  title?: Prisma.IntFieldUpdateOperationsInput | number
+  season?: Prisma.IntFieldUpdateOperationsInput | number
+  episode?: Prisma.IntFieldUpdateOperationsInput | number
   imdb?: Prisma.StringFieldUpdateOperationsInput | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type TmdbImdbUncheckedUpdateManyInput = {
-  tmdb?: Prisma.StringFieldUpdateOperationsInput | string
+  mediaType?: Prisma.EnumMediaTypeFieldUpdateOperationsInput | $Enums.MediaType
+  title?: Prisma.IntFieldUpdateOperationsInput | number
+  season?: Prisma.IntFieldUpdateOperationsInput | number
+  episode?: Prisma.IntFieldUpdateOperationsInput | number
   imdb?: Prisma.StringFieldUpdateOperationsInput | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
+export type TmdbImdbMediaTypeTitleSeasonEpisodeCompoundUniqueInput = {
+  mediaType: $Enums.MediaType
+  title: number
+  season: number
+  episode: number
+}
+
 export type TmdbImdbCountOrderByAggregateInput = {
-  tmdb?: Prisma.SortOrder
+  mediaType?: Prisma.SortOrder
+  title?: Prisma.SortOrder
+  season?: Prisma.SortOrder
+  episode?: Prisma.SortOrder
   imdb?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
 
+export type TmdbImdbAvgOrderByAggregateInput = {
+  title?: Prisma.SortOrder
+  season?: Prisma.SortOrder
+  episode?: Prisma.SortOrder
+}
+
 export type TmdbImdbMaxOrderByAggregateInput = {
-  tmdb?: Prisma.SortOrder
+  mediaType?: Prisma.SortOrder
+  title?: Prisma.SortOrder
+  season?: Prisma.SortOrder
+  episode?: Prisma.SortOrder
   imdb?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
 
 export type TmdbImdbMinOrderByAggregateInput = {
-  tmdb?: Prisma.SortOrder
+  mediaType?: Prisma.SortOrder
+  title?: Prisma.SortOrder
+  season?: Prisma.SortOrder
+  episode?: Prisma.SortOrder
   imdb?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type TmdbImdbSumOrderByAggregateInput = {
+  title?: Prisma.SortOrder
+  season?: Prisma.SortOrder
+  episode?: Prisma.SortOrder
+}
+
+export type EnumMediaTypeFieldUpdateOperationsInput = {
+  set?: $Enums.MediaType
+}
+
+export type IntFieldUpdateOperationsInput = {
+  set?: number
+  increment?: number
+  decrement?: number
+  multiply?: number
+  divide?: number
 }
 
 export type StringFieldUpdateOperationsInput = {
@@ -272,36 +414,51 @@ export type DateTimeFieldUpdateOperationsInput = {
 
 
 export type TmdbImdbSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
-  tmdb?: boolean
+  mediaType?: boolean
+  title?: boolean
+  season?: boolean
+  episode?: boolean
   imdb?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["tmdbImdb"]>
 
 export type TmdbImdbSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
-  tmdb?: boolean
+  mediaType?: boolean
+  title?: boolean
+  season?: boolean
+  episode?: boolean
   imdb?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["tmdbImdb"]>
 
 export type TmdbImdbSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
-  tmdb?: boolean
+  mediaType?: boolean
+  title?: boolean
+  season?: boolean
+  episode?: boolean
   imdb?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["tmdbImdb"]>
 
 export type TmdbImdbSelectScalar = {
-  tmdb?: boolean
+  mediaType?: boolean
+  title?: boolean
+  season?: boolean
+  episode?: boolean
   imdb?: boolean
   updatedAt?: boolean
 }
 
-export type TmdbImdbOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"tmdb" | "imdb" | "updatedAt", ExtArgs["result"]["tmdbImdb"]>
+export type TmdbImdbOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"mediaType" | "title" | "season" | "episode" | "imdb" | "updatedAt", ExtArgs["result"]["tmdbImdb"]>
 
 export type $TmdbImdbPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "TmdbImdb"
   objects: {}
   scalars: runtime.Types.Extensions.GetPayloadResult<{
-    tmdb: string
+    mediaType: $Enums.MediaType
+    title: number
+    season: number
+    episode: number
     imdb: string
     updatedAt: Date
   }, ExtArgs["result"]["tmdbImdb"]>
@@ -387,8 +544,8 @@ export interface TmdbImdbDelegate<ExtArgs extends runtime.Types.Extensions.Inter
    * // Get first 10 TmdbImdbs
    * const tmdbImdbs = await prisma.tmdbImdb.findMany({ take: 10 })
    * 
-   * // Only select the `tmdb`
-   * const tmdbImdbWithTmdbOnly = await prisma.tmdbImdb.findMany({ select: { tmdb: true } })
+   * // Only select the `title`
+   * const tmdbImdbWithTitleOnly = await prisma.tmdbImdb.findMany({ select: { title: true } })
    * 
    */
   findMany<T extends TmdbImdbFindManyArgs>(args?: Prisma.SelectSubset<T, TmdbImdbFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$TmdbImdbPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
@@ -432,9 +589,9 @@ export interface TmdbImdbDelegate<ExtArgs extends runtime.Types.Extensions.Inter
    *   ]
    * })
    * 
-   * // Create many TmdbImdbs and only return the `tmdb`
-   * const tmdbImdbWithTmdbOnly = await prisma.tmdbImdb.createManyAndReturn({
-   *   select: { tmdb: true },
+   * // Create many TmdbImdbs and only return the `title`
+   * const tmdbImdbWithTitleOnly = await prisma.tmdbImdb.createManyAndReturn({
+   *   select: { title: true },
    *   data: [
    *     // ... provide data here
    *   ]
@@ -523,9 +680,9 @@ export interface TmdbImdbDelegate<ExtArgs extends runtime.Types.Extensions.Inter
    *   ]
    * })
    * 
-   * // Update zero or more TmdbImdbs and only return the `tmdb`
-   * const tmdbImdbWithTmdbOnly = await prisma.tmdbImdb.updateManyAndReturn({
-   *   select: { tmdb: true },
+   * // Update zero or more TmdbImdbs and only return the `title`
+   * const tmdbImdbWithTitleOnly = await prisma.tmdbImdb.updateManyAndReturn({
+   *   select: { title: true },
    *   where: {
    *     // ... provide filter here
    *   },
@@ -727,7 +884,10 @@ export interface Prisma__TmdbImdbClient<T, Null = never, ExtArgs extends runtime
  * Fields of the TmdbImdb model
  */
 export interface TmdbImdbFieldRefs {
-  readonly tmdb: Prisma.FieldRef<"TmdbImdb", 'String'>
+  readonly mediaType: Prisma.FieldRef<"TmdbImdb", 'MediaType'>
+  readonly title: Prisma.FieldRef<"TmdbImdb", 'Int'>
+  readonly season: Prisma.FieldRef<"TmdbImdb", 'Int'>
+  readonly episode: Prisma.FieldRef<"TmdbImdb", 'Int'>
   readonly imdb: Prisma.FieldRef<"TmdbImdb", 'String'>
   readonly updatedAt: Prisma.FieldRef<"TmdbImdb", 'DateTime'>
 }

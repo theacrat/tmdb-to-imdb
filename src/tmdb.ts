@@ -8,6 +8,7 @@ import {
 	getSeriesFromTmdbImdbId,
 	getTitleFromId,
 	getTitleFromTmdbData,
+	ImdbId,
 } from "./imdb";
 import {
 	addIdsToDatabase,
@@ -15,9 +16,13 @@ import {
 	getIdFromDatabase,
 	getIdsFromDatabase,
 } from "./prisma";
+import pLimit from "p-limit";
 import { AppendToResponse, Episode, TMDB, TvShowDetails } from "tmdb-ts";
 
 let tmdb: TMDB;
+const limit = pLimit(100);
+
+export type TmdbId = [number, number, number];
 
 export type TmdbSeries = AppendToResponse<
 	TvShowDetails,
@@ -58,7 +63,7 @@ async function getSeriesTitle(
 }
 
 export async function getMovieFromTmdb(movie: number) {
-	const dbMatch = await getIdFromDatabase("m", movie);
+	const dbMatch = await getIdFromDatabase("M", movie, 0, 0);
 	if (dbMatch) {
 		return dbMatch;
 	}
@@ -87,23 +92,20 @@ export async function getMovieFromTmdb(movie: number) {
 		return undefined;
 	}
 
-	const result = await addIdToDatabase("m", { tmdb: [movie], imdb: imdbMovie });
-	return { tmdb: result.tmdb, imdb: result.imdb };
+	const result = await addIdToDatabase("M", {
+		tmdb: [movie, 0, 0],
+		imdb: imdbMovie,
+	});
+	return result;
 }
 
 export async function getEpisodeFromTmdb(
 	series: number,
 	season: number,
 	episode: number,
-	updateDb: boolean = true,
 	tmdbSeries?: TmdbSeries,
 	imdbSeries?: Awaited<ReturnType<typeof getSeriesFromTmdbImdbId>>,
 ) {
-	const dbMatch = await getIdFromDatabase("e", series, season, episode);
-	if (dbMatch) {
-		return dbMatch;
-	}
-
 	let tmdbEpisode;
 	try {
 		tmdbEpisode = await tmdb.tvEpisode.details(
@@ -118,11 +120,14 @@ export async function getEpisodeFromTmdb(
 		[tmdbSeries, imdbSeries] = await getSeriesTitle(series, tmdbSeries);
 	}
 
-	let imdbEpisode: [string, number?, number?] | undefined;
+	let imdbEpisode: ImdbId | undefined;
 
 	const imdbEpisodes = imdbSeries?.episodes?.episodes?.edges;
 
 	const tmdbAirDate = new Date(Date.parse(tmdbEpisode.air_date));
+	if (tmdbAirDate > new Date()) {
+		return;
+	}
 	let absoluteEpisodeNumber = episode;
 	tmdbSeries?.seasons.forEach((s) => {
 		if (!s.season_number) {
@@ -133,31 +138,36 @@ export async function getEpisodeFromTmdb(
 			absoluteEpisodeNumber += s.episode_count;
 		}
 	});
-	const episodeMatch = (season ? imdbEpisodes : [])?.find((n, i) => {
-		const e = n?.node;
-		if (!e) {
-			return;
-		}
+	const episodeMatch = (season ? imdbEpisodes : [])
+		?.filter(
+			(n) =>
+				n?.node.series?.displayableEpisodeNumber.displayableSeason.text !== "0",
+		)
+		?.find((n, i) => {
+			const e = n?.node;
+			if (!e) {
+				return;
+			}
 
-		if (e.id === tmdbEpisode.external_ids.imdb_id) {
-			return true;
-		}
+			if (e.id === tmdbEpisode.external_ids.imdb_id) {
+				return true;
+			}
 
-		const imdbAirDate = new Date(
-			Date.UTC(
-				e.releaseDate?.year || 0,
-				(e.releaseDate?.month || 1) - 1,
-				e.releaseDate?.day || 0,
-			),
-		);
+			const imdbAirDate = new Date(
+				Date.UTC(
+					e.releaseDate?.year || 0,
+					(e.releaseDate?.month || 1) - 1,
+					e.releaseDate?.day || 0,
+				),
+			);
+			if (
+				imdbAirDate.getTime() === tmdbAirDate.getTime() &&
+				i === absoluteEpisodeNumber - 1
+			) {
+				return true;
+			}
+		});
 
-		if (
-			imdbAirDate.getTime() === tmdbAirDate.getTime() &&
-			i === absoluteEpisodeNumber - 1
-		) {
-			return true;
-		}
-	});
 	if (imdbSeries && episodeMatch) {
 		const seasonAndEpisode = getSeasonAndEpisode(
 			episodeMatch.node as Title,
@@ -182,18 +192,13 @@ export async function getEpisodeFromTmdb(
 		return;
 	}
 
-	if (updateDb) {
-		return addIdToDatabase("e", {
-			tmdb: [series, season, episode],
-			imdb: imdbEpisode,
-		});
-	}
 	return imdbEpisode;
 }
 
 export async function getSeasonFromTmdb(
 	series: number,
 	season: number,
+	addToDb: boolean = true,
 	tmdbSeries?: TmdbSeries,
 	imdbSeries?: Awaited<ReturnType<typeof getSeriesFromTmdbImdbId>>,
 ) {
@@ -208,7 +213,7 @@ export async function getSeasonFromTmdb(
 	}
 
 	const dbMatch = await getIdsFromDatabase(
-		"e",
+		"E",
 		tmdbSeason.episodes.map((e) => [series, season, e.episode_number]),
 	);
 
@@ -220,23 +225,23 @@ export async function getSeasonFromTmdb(
 		tmdbSeason.episodes.map(
 			(e, idx) =>
 				dbMatch[idx] ||
-				getEpisodeFromTmdb(
-					series,
-					season,
-					e.episode_number,
-					false,
-					tmdbSeries,
-					imdbSeries,
+				limit(() =>
+					getEpisodeFromTmdb(
+						series,
+						season,
+						e.episode_number,
+						tmdbSeries,
+						imdbSeries,
+					),
 				),
 		),
 	);
-
-	// TODO crawl backwards if there are multiple seasons so you can figure out where one ends and fill in undefineds correctly
 
 	const firstMatch = imdbSeason.find((e) => Array.isArray(e));
 	const lastMatch = imdbSeason.findLast((e) => Array.isArray(e));
 	const fIdx = imdbSeason.indexOf(firstMatch);
 	const lIdx = imdbSeason.indexOf(lastMatch);
+
 	if (
 		Array.isArray(firstMatch) &&
 		Array.isArray(lastMatch) &&
@@ -257,6 +262,7 @@ export async function getSeasonFromTmdb(
 		const commonSeason = imdbSeason.find(
 			(e) => Array.isArray(e) && e?.[0] === commonSeries,
 		);
+
 		if (commonSeries && Array.isArray(commonSeason)) {
 			const firstEpisodeNum = firstMatch[2];
 			imdbSeason.forEach((_, i) => {
@@ -269,46 +275,115 @@ export async function getSeasonFromTmdb(
 		}
 	}
 
-	const newEntries = tmdbSeason.episodes.flatMap((e, i) => {
-		const imdbEpisode = imdbSeason[i];
-		if (!Array.isArray(imdbEpisode)) {
-			return [];
-		}
-		return {
-			tmdb: [series, season, e.episode_number] as [number, number, number],
-			imdb: imdbEpisode,
-			idx: i,
-		};
-	});
+	if (!addToDb) return imdbSeason;
 
-	const newEntryIds = await addIdsToDatabase("e", newEntries);
+	const newEntries = tmdbSeason.episodes.map((e, i) => ({
+		tmdb: [series, season, e.episode_number] as TmdbId,
+		imdb: (Array.isArray(imdbSeason[i]) ? imdbSeason[i] : [""]) as [
+			string,
+			number?,
+			number?,
+		],
+		idx: i,
+	}));
+
+	const newEntryIds = await addIdsToDatabase(
+		"E",
+		newEntries.map(({ tmdb, imdb }) => ({ tmdb, imdb })),
+	);
 
 	return imdbSeason.map((e, i) => {
-		if (Array.isArray(e)) {
-			const entryIndex = newEntries?.findIndex((n) => n.idx === i);
-			return entryIndex !== undefined ? newEntryIds[entryIndex] : undefined;
-		}
-		return e ? { tmdb: e.tmdb, imdb: e.imdb } : undefined;
+		if (!Array.isArray(e)) return e;
+		const entryIndex = newEntries.findIndex((n) => n.idx === i);
+		return entryIndex !== -1 ? newEntryIds[entryIndex] : undefined;
 	});
 }
 
 export async function getSeriesFromTmdb(series: number) {
-	const [tmdbSeries, fullSeries] = await getSeriesTitle(series);
+	const tmdbSeries = await tmdb.tvShows.details(series, ["external_ids"]);
+	if (!tmdbSeries) return;
 
-	if (!tmdbSeries) {
-		return;
-	}
+	const [, fullSeries] = await getSeriesTitle(series, tmdbSeries);
 
-	const imdbSeries = [];
-	for (const s of tmdbSeries.seasons) {
-		const season = await getSeasonFromTmdb(
-			series,
-			s.season_number,
-			tmdbSeries,
-			fullSeries,
-		);
-		imdbSeries.push(season);
-	}
+	const allEpisodeIds: TmdbId[] = [];
+	const episodeToSeasonMap = new Map<
+		number,
+		{ seasonIdx: number; episodeIdx: number }
+	>();
+
+	tmdbSeries.seasons.forEach((s, seasonIdx) => {
+		Array.from({ length: s.episode_count }, (_, ep) => {
+			const globalIdx = allEpisodeIds.length;
+			allEpisodeIds.push([series, s.season_number, ep + 1]);
+			episodeToSeasonMap.set(globalIdx, { seasonIdx, episodeIdx: ep });
+		});
+	});
+
+	const dbResults = await getIdsFromDatabase("E", allEpisodeIds);
+	const imdbSeries = tmdbSeries.seasons.map((s) =>
+		Array(s.episode_count).fill(undefined),
+	);
+
+	dbResults.forEach((result, globalIdx) => {
+		const mapping = episodeToSeasonMap.get(globalIdx);
+		if (!mapping || !result) return;
+		imdbSeries[mapping.seasonIdx]![mapping.episodeIdx] = result;
+	});
+
+	const newEntries: {
+		tmdb: TmdbId;
+		imdb: ImdbId;
+		seasonIdx: number;
+		episodeIdx: number;
+	}[] = [];
+
+	const seasonCalls = tmdbSeries.seasons.map(async (s, i) => {
+		const seasonData = imdbSeries[i];
+
+		if (
+			seasonData?.length === s.episode_count &&
+			seasonData.every((ep) => ep !== undefined)
+		) {
+			return;
+		}
+
+		return {
+			index: i,
+			seasonNumber: s.season_number,
+			season: await getSeasonFromTmdb(
+				series,
+				s.season_number,
+				false,
+				tmdbSeries,
+				fullSeries,
+			),
+		};
+	});
+
+	const seasonResults = await Promise.all(seasonCalls);
+
+	seasonResults.forEach((result) => {
+		if (!result?.season) return;
+
+		imdbSeries[result.index] = result.season;
+		result.season.forEach((episode, episodeIdx) => {
+			newEntries.push({
+				tmdb: [series, result.seasonNumber, episodeIdx + 1],
+				imdb: (Array.isArray(episode) ? episode : [""]) as ImdbId,
+				seasonIdx: result.index,
+				episodeIdx,
+			});
+		});
+	});
+
+	const newEntryIds = await addIdsToDatabase("E", newEntries);
+	newEntries.forEach((e, i) => {
+		const season = imdbSeries[e.seasonIdx];
+		if (!season || !Array.isArray(season[e.episodeIdx])) {
+			return;
+		}
+		season[e.episodeIdx] = newEntryIds[i];
+	});
 
 	return imdbSeries;
 }
