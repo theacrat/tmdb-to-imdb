@@ -1,8 +1,9 @@
+import { StremioMeta, StremioType } from "../classes/StremioMeta";
 import {
 	DisplayableEpisodeNumber,
 	EpisodeConnection,
 	Title,
-} from "./generated/graphql/graphql";
+} from "../generated/graphql/graphql";
 import {
 	getSeasonAndEpisode,
 	getSeriesFromTmdbImdbId,
@@ -13,21 +14,41 @@ import {
 import {
 	addIdsToDatabase,
 	addIdToDatabase,
+	DbResult,
 	getIdFromDatabase,
 	getIdsFromDatabase,
 } from "./prisma";
 import pLimit from "p-limit";
-import { AppendToResponse, Episode, TMDB, TvShowDetails } from "tmdb-ts";
+import {
+	AppendToResponse,
+	AppendToResponseTvSeasonKey,
+	Episode,
+	MovieDetails,
+	SeasonDetails,
+	TMDB,
+	TvShowDetails,
+} from "tmdb-ts";
 
 let tmdb: TMDB;
 const limit = pLimit(100);
 
 export type TmdbId = [number, number, number];
 
+export type TmdbMovie = AppendToResponse<
+	MovieDetails,
+	("credits" | "images" | "external_ids")[],
+	"movie"
+>;
+
 export type TmdbSeries = AppendToResponse<
 	TvShowDetails,
-	"external_ids"[],
+	("credits" | "images" | "external_ids")[],
 	"tvShow"
+>;
+export type TmdbSeason = AppendToResponse<
+	SeasonDetails,
+	AppendToResponseTvSeasonKey[] | undefined,
+	"tvSeason"
 >;
 export type TmdbEpisode = AppendToResponse<
 	Omit<Episode, "show_id">,
@@ -49,7 +70,11 @@ async function getSeriesTitle(
 > {
 	if (!tmdbSeries) {
 		try {
-			tmdbSeries = await tmdb.tvShows.details(series, ["external_ids"]);
+			tmdbSeries = await tmdb.tvShows.details(series, [
+				"external_ids",
+				"credits",
+				"images",
+			]);
 		} catch {
 			return [];
 		}
@@ -62,17 +87,22 @@ async function getSeriesTitle(
 	return [tmdbSeries, imdbSeries];
 }
 
-export async function getMovieFromTmdb(movie: number) {
+export async function getMovieFromTmdb(movie: number, tmdbMovie?: TmdbMovie) {
 	const dbMatch = await getIdFromDatabase("M", movie, 0, 0);
 	if (dbMatch) {
 		return dbMatch;
 	}
 
-	let tmdbMovie;
-	try {
-		tmdbMovie = await tmdb.movies.details(movie, ["external_ids"]);
-	} catch {
-		return undefined;
+	if (!tmdbMovie) {
+		try {
+			tmdbMovie = await tmdb.movies.details(movie, [
+				"external_ids",
+				"credits",
+				"images",
+			]);
+		} catch {
+			return;
+		}
 	}
 
 	let imdbMovie;
@@ -201,14 +231,20 @@ export async function getSeasonFromTmdb(
 	addToDb: boolean = true,
 	tmdbSeries?: TmdbSeries,
 	imdbSeries?: Awaited<ReturnType<typeof getSeriesFromTmdbImdbId>>,
+	tmdbSeason?: TmdbSeason,
 ) {
-	let tmdbSeason;
-	try {
-		tmdbSeason = await tmdb.tvSeasons.details({
-			tvShowID: series,
-			seasonNumber: season,
-		});
-	} catch {
+	if (!tmdbSeason) {
+		try {
+			tmdbSeason = await tmdb.tvSeasons.details({
+				tvShowID: series,
+				seasonNumber: season,
+			});
+		} catch {
+			return;
+		}
+	}
+
+	if (!tmdbSeason) {
 		return;
 	}
 
@@ -301,11 +337,17 @@ export async function getSeasonFromTmdb(
 	});
 }
 
-export async function getSeriesFromTmdb(series: number) {
-	const tmdbSeries = await tmdb.tvShows.details(series, ["external_ids"]);
-	if (!tmdbSeries) return;
-
-	const [, fullSeries] = await getSeriesTitle(series, tmdbSeries);
+export async function getSeriesFromTmdb(
+	series: number,
+	tmdbSeries?: TmdbSeries,
+	tmdbSeasons?: TmdbSeason[],
+): Promise<DbResult[][] | undefined> {
+	const seriesTitle = await getSeriesTitle(series, tmdbSeries);
+	[tmdbSeries] = seriesTitle;
+	const [, fullSeries] = seriesTitle;
+	if (!tmdbSeries) {
+		return;
+	}
 
 	const allEpisodeIds: TmdbId[] = [];
 	const episodeToSeasonMap = new Map<
@@ -358,6 +400,7 @@ export async function getSeriesFromTmdb(series: number) {
 				false,
 				tmdbSeries,
 				fullSeries,
+				tmdbSeasons?.[i],
 			),
 		};
 	});
@@ -388,4 +431,117 @@ export async function getSeriesFromTmdb(series: number) {
 	});
 
 	return imdbSeries;
+}
+
+export async function getMeta(tmdbId: number, type: StremioType) {
+	let m;
+	try {
+		m = await (type === "movie"
+			? tmdb.movies.details(tmdbId, ["images", "credits", "external_ids"])
+			: tmdb.tvShows.details(tmdbId, ["images", "credits", "external_ids"]));
+	} catch {
+		return;
+	}
+
+	if (!m.id) {
+		return;
+	}
+
+	let videos, imdbMovie;
+	if ("seasons" in m) {
+		const seasons = await Promise.all(
+			m.seasons.map((season) =>
+				tmdb.tvSeasons.details({
+					tvShowID: tmdbId,
+					seasonNumber: season.season_number,
+				}),
+			),
+		);
+
+		const imdbSeries = await getSeriesFromTmdb(tmdbId, m, seasons);
+		const episodes = seasons.flatMap((s) => s.episodes || []);
+
+		videos = episodes.map((e) => {
+			const season = seasons.find((s) => s.season_number === e.season_number)!;
+			const episode = season.episodes.indexOf(e);
+			return {
+				id:
+					imdbSeries?.[seasons.indexOf(season)][episode]?.imdb ||
+					`tmdb:${tmdbId}:${e.season_number}:${e.episode_number}`,
+				title: e.name,
+				released: new Date(Date.parse(e.air_date)),
+				thumbnail: e.still_path,
+				episode: e.episode_number,
+				season: e.season_number,
+				overview: e.overview,
+			};
+		});
+	} else {
+		imdbMovie = await getMovieFromTmdb(tmdbId, m);
+	}
+
+	const meta = new StremioMeta({
+		id: `tmdb:${tmdbId}`,
+		type: type,
+		name: "name" in m ? m.name : m.title,
+		imdb_id: m.external_ids.imdb_id,
+		genres: m.genres?.map((g) => g.name),
+		poster: m.images.posters.find((i) => i)?.file_path,
+		background: m.images.backdrops.find((i) => i)?.file_path,
+		logo: m.images.logos.find((i) => i)?.file_path,
+		description: m.overview,
+		releaseInfo: (() => {
+			if ("release_date" in m) {
+				return m.release_date.split("-")[0];
+			}
+			const first = m.first_air_date.split("-")[0];
+			const last = m.last_air_date.split("-")[0];
+
+			if (first === last) {
+				return first;
+			}
+
+			return `${first}-${!m.in_production ? last : ""}`;
+		})(),
+		director: m.credits.crew?.flatMap((p) =>
+			p?.job === "Director" ? p.name : [],
+		),
+		cast: m.credits.cast?.map((p) => p.name).slice(0, 5),
+		imdbRating: (Math.round(m.vote_average * 10) / 10).toString(),
+		released: new Date(
+			Date.parse("release_date" in m ? m.release_date : m.first_air_date),
+		),
+		runtime: `${("episode_run_time" in m ? m.episode_run_time : m.runtime) || "?"} min`,
+		language: m.spoken_languages.map((l) => l.english_name).join(", "),
+		country: m.production_countries?.map((c) => c.name).join(", "),
+		videos: videos,
+		website: m.homepage,
+		behaviorHints: imdbMovie
+			? { defaultVideoId: imdbMovie.imdb || m.external_ids.imdb_id }
+			: undefined,
+	});
+
+	return meta;
+}
+
+export async function getSearch(query: string, type: StremioType) {
+	let m;
+	try {
+		m = await (type === "movie"
+			? (m = tmdb.search.movies({ query }))
+			: tmdb.search.tvShows({ query }));
+	} catch {
+		return;
+	}
+
+	const results = m.results.map((m) => {
+		return new StremioMeta({
+			id: `tmdb:${m.id}`,
+			type,
+			name: "name" in m ? m.name : m.title,
+			poster: m.poster_path,
+		});
+	});
+
+	return results;
 }

@@ -1,4 +1,4 @@
-import { PrismaClient, MediaType, TmdbImdb } from "./generated/prisma/client";
+import { PrismaClient, MediaType, TmdbImdb } from "../generated/prisma/client";
 import { ImdbId } from "./imdb";
 import { TmdbId } from "./tmdb";
 import { PrismaD1 } from "@prisma/adapter-d1";

@@ -1,4 +1,4 @@
-import { graphql } from "./generated/graphql/gql";
+import { graphql } from "../generated/graphql/gql";
 import {
 	DisplayableEpisodeNumber,
 	EpisodeConnection,
@@ -7,7 +7,7 @@ import {
 	MainSearchTitleType,
 	MainSearchType,
 	Title,
-} from "./generated/graphql/graphql";
+} from "../generated/graphql/graphql";
 import { Client, cacheExchange, fetchExchange } from "@urql/core";
 
 export type ImdbId = [string, number?, number?];
