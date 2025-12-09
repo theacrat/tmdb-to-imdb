@@ -75,7 +75,8 @@ async function getSeriesTitle(
 				"credits",
 				"images",
 			]);
-		} catch {
+		} catch (e) {
+			console.error(e);
 			return [];
 		}
 	}
@@ -100,7 +101,8 @@ export async function getMovieFromTmdb(movie: number, tmdbMovie?: TmdbMovie) {
 				"credits",
 				"images",
 			]);
-		} catch {
+		} catch (e) {
+			console.error(e);
 			return;
 		}
 	}
@@ -239,7 +241,8 @@ export async function getSeasonFromTmdb(
 				tvShowID: series,
 				seasonNumber: season,
 			});
-		} catch {
+		} catch (e) {
+			console.error(e);
 			return;
 		}
 	}

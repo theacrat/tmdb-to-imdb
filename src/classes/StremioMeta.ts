@@ -146,7 +146,8 @@ export class StremioMeta {
 				}));
 
 			this.links?.push(...newLinks);
-		} catch {
+		} catch (e) {
+			console.error(e);
 			return;
 		}
 	}

@@ -37,10 +37,10 @@ async function withCache(
 		ttlDays: number;
 	}>,
 ): Promise<Response> {
-	const cachedResponse = await cache.match(request);
-	if (cachedResponse) {
-		return cachedResponse;
-	}
+	// const cachedResponse = await cache.match(request);
+	// if (cachedResponse) {
+	// 	return cachedResponse;
+	// }
 
 	const { response: data, shouldCache, ttlDays } = await fetchFn();
 
@@ -169,8 +169,6 @@ app.get("/meta/:type{(movie|series)}/:id", async (c) => {
 
 		const isContinuing = result?.releaseInfo?.endsWith("-");
 		const ttlDays = isContinuing ? 1 : 7;
-
-		console.log(result, "what");
 
 		return {
 			response: await (result ? c.json({ meta: result }) : c.notFound()),

@@ -176,7 +176,7 @@ export async function addIdsToDatabase(
 			imdb: buildId(d.imdb) || "",
 		};
 	});
-
+	console.log(records);
 	const values = records
 		.map(
 			(r) =>
