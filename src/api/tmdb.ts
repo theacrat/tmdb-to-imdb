@@ -519,7 +519,7 @@ export async function getMeta(tmdbId: number, type: StremioType) {
 		released: new Date(
 			Date.parse("release_date" in m ? m.release_date : m.first_air_date),
 		),
-		runtime: `${("episode_run_time" in m ? m.episode_run_time : m.runtime) || "?"} min`,
+		runtime: `${("episode_run_time" in m ? m.episode_run_time?.[0] : m.runtime) || "?"} min`,
 		language: m.spoken_languages.map((l) => l.english_name).join(", "),
 		country: m.production_countries?.map((c) => c.name).join(", "),
 		videos: videos,
