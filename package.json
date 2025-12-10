@@ -10,7 +10,7 @@
 		"codegen:watch": "graphql-codegen --config codegen.ts --watch",
 		"format": "prettier --write --ignore-unknown",
 		"lint": "eslint --fix",
-		"prepare": "husky"
+		"prepare": "husky || true"
 	},
 	"lint-staged": {
 		"*": [
