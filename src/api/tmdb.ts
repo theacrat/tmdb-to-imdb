@@ -488,7 +488,7 @@ export async function getMeta(tmdbId: number, type: StremioType) {
 		id: `tmdb:${tmdbId}`,
 		type: type,
 		name: "name" in m ? m.name : m.title,
-		imdb_id: m.external_ids.imdb_id,
+		// imdb_id: m.external_ids.imdb_id,
 		genres: m.genres?.map((g) => g.name),
 		poster: m.images.posters.find((i) => i)?.file_path,
 		background: m.images.backdrops.find((i) => i)?.file_path,
