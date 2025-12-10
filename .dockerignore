@@ -1,8 +1,19 @@
+Dockerfile*
+docker-compose*
+.dockerignore
+.git
+.gitignore
+*.md
+LICENSE
+Makefile
+
 node_modules/
 
 .env
 .env.*
 !.env.example
+
+.firebaserc
 
 service-account-key.json
 *-service-account.json
@@ -10,8 +21,6 @@ service-account-key.json
 !package.json
 !tsconfig.json
 !firebase.json
-
-.firebaserc
 
 *.log
 logs/

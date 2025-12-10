@@ -1,4 +1,5 @@
-import { buildId, instantiatePrisma } from "./api/prisma";
+import { buildId } from "./api/firestore";
+import { instantiateFirestore } from "./api/firestore";
 import {
 	getMovieFromTmdb,
 	getSeasonFromTmdb,
@@ -10,11 +11,31 @@ import {
 import { Manifest } from "./classes/StremioAddon";
 import { StremioType } from "./classes/StremioMeta";
 import { Context, Hono } from "hono";
-import { env } from "hono/adapter";
 import { cors } from "hono/cors";
 
-const app = new Hono<{ Bindings: CloudflareBindings }>();
-const cache = caches.default;
+type Env = {
+	Bindings: {
+		TMDB_API: string;
+		GCP_PROJECT_ID: string;
+	};
+};
+
+function getRequiredEnv(key: string): string {
+	const value = Bun.env[key];
+	if (!value) {
+		throw new Error(`${key} environment variable is required`);
+	}
+	return value;
+}
+
+// Initialize services once at startup with validated env vars
+const TMDB_API = getRequiredEnv("TMDB_API");
+const GCP_PROJECT_ID = getRequiredEnv("GCP_PROJECT_ID");
+
+instantiateTmdb(TMDB_API);
+instantiateFirestore(GCP_PROJECT_ID);
+
+const app = new Hono<Env>();
 
 function buildResponse(context: Context, response?: object) {
 	return context.json({
@@ -30,39 +51,31 @@ function daysToCacheTime(days: number) {
 }
 
 async function withCache(
-	request: Request,
+	_request: Request,
 	fetchFn: () => Promise<{
 		response: Response;
 		shouldCache: boolean;
 		ttlDays: number;
 	}>,
 ): Promise<Response> {
-	// const cachedResponse = await cache.match(request);
-	// if (cachedResponse) {
-	// 	return cachedResponse;
-	// }
-
 	const { response: data, shouldCache, ttlDays } = await fetchFn();
 
 	if (shouldCache) {
-		data.headers.append(
+		// Set Cache-Control header for GCP Cloud CDN/Load Balancer caching
+		// s-maxage is used by CDN, max-age is for browser caching
+		data.headers.set(
 			"Cache-Control",
-			`public, max-age=${daysToCacheTime(ttlDays)}`,
+			`public, s-maxage=${daysToCacheTime(ttlDays)}, max-age=${daysToCacheTime(ttlDays)}`,
 		);
-		cache.put(request, data.clone());
+	} else {
+		// Explicitly prevent caching of failed requests
+		data.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
 	}
 
 	return data;
 }
 
 app.use("*", cors({ origin: "*" }));
-app.use("*", async (c, next) => {
-	const { TMDB_API, TMDB_IMDB_DB, WORKER_ENV } = env(c);
-	const apiKey = await c.text(TMDB_API).text();
-	instantiateTmdb(apiKey);
-	instantiatePrisma(TMDB_IMDB_DB, WORKER_ENV);
-	return await next();
-});
 
 app.get("/series/:series{\\d+}/:season{\\d+}/:episode{\\d+}", async (c) => {
 	const { series, season, episode } = c.req.param();
@@ -192,4 +205,7 @@ app.get("/catalog/:type{(movie|series)}/search/:query", async (c) => {
 	});
 });
 
-export default app;
+export default {
+	port: parseInt(Bun.env.PORT || "3000"),
+	fetch: app.fetch,
+};

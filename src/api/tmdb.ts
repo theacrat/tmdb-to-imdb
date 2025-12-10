@@ -5,19 +5,20 @@ import {
 	Title,
 } from "../generated/graphql/graphql";
 import {
+	addIdsToDatabase,
+	addIdToDatabase,
+	DbResult,
+	getIdFromDatabase,
+	getIdsFromDatabase,
+	MediaType,
+} from "./firestore";
+import {
 	getSeasonAndEpisode,
 	getSeriesFromTmdbImdbId,
 	getTitleFromId,
 	getTitleFromTmdbData,
 	ImdbId,
 } from "./imdb";
-import {
-	addIdsToDatabase,
-	addIdToDatabase,
-	DbResult,
-	getIdFromDatabase,
-	getIdsFromDatabase,
-} from "./prisma";
 import pLimit from "p-limit";
 import {
 	AppendToResponse,
@@ -89,7 +90,7 @@ async function getSeriesTitle(
 }
 
 export async function getMovieFromTmdb(movie: number, tmdbMovie?: TmdbMovie) {
-	const dbMatch = await getIdFromDatabase("M", movie, 0, 0);
+	const dbMatch = await getIdFromDatabase(MediaType.M, movie, 0, 0);
 	if (dbMatch) {
 		return dbMatch;
 	}
@@ -124,7 +125,7 @@ export async function getMovieFromTmdb(movie: number, tmdbMovie?: TmdbMovie) {
 		return undefined;
 	}
 
-	const result = await addIdToDatabase("M", {
+	const result = await addIdToDatabase(MediaType.M, {
 		tmdb: [movie, 0, 0],
 		imdb: imdbMovie,
 	});
@@ -252,7 +253,7 @@ export async function getSeasonFromTmdb(
 	}
 
 	const dbMatch = await getIdsFromDatabase(
-		"E",
+		MediaType.E,
 		tmdbSeason.episodes.map((e) => [series, season, e.episode_number]),
 		tmdbSeason.episodes,
 	);
@@ -329,7 +330,7 @@ export async function getSeasonFromTmdb(
 	}));
 
 	const newEntryIds = await addIdsToDatabase(
-		"E",
+		MediaType.E,
 		newEntries.map(({ tmdb, imdb }) => ({ tmdb, imdb })),
 	);
 
@@ -366,7 +367,7 @@ export async function getSeriesFromTmdb(
 		});
 	});
 
-	const dbResults = await getIdsFromDatabase("E", allEpisodeIds);
+	const dbResults = await getIdsFromDatabase(MediaType.E, allEpisodeIds);
 	const imdbSeries = tmdbSeries.seasons.map((s) =>
 		Array(s.episode_count).fill(undefined),
 	);
@@ -424,7 +425,7 @@ export async function getSeriesFromTmdb(
 		});
 	});
 
-	const newEntryIds = await addIdsToDatabase("E", newEntries);
+	const newEntryIds = await addIdsToDatabase(MediaType.E, newEntries);
 	newEntries.forEach((e, i) => {
 		const season = imdbSeries[e.seasonIdx];
 		if (!season || !Array.isArray(season[e.episodeIdx])) {
