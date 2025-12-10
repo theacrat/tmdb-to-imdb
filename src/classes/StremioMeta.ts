@@ -164,17 +164,17 @@ export class StremioMeta {
 		}
 
 		if (this.poster) {
-			this.poster = `https://image.tmdb.org/t/p/w780${this.poster}`;
+			this.poster = `https://image.tmdb.org/t/p/original${this.poster}`;
 		}
 		if (this.background) {
-			this.background = `https://image.tmdb.org/t/p/w1280${this.background}`;
+			this.background = `https://image.tmdb.org/t/p/original${this.background}`;
 		}
 		if (this.logo) {
-			this.logo = `https://image.tmdb.org/t/p/w500${this.logo}`;
+			this.logo = `https://image.tmdb.org/t/p/original${this.logo}`;
 		}
 		this.videos?.forEach((v) => {
 			if (v.thumbnail) {
-				v.thumbnail = `https://image.tmdb.org/t/p/w300${v.thumbnail}`;
+				v.thumbnail = `https://image.tmdb.org/t/p/original${v.thumbnail}`;
 			}
 		});
 	}

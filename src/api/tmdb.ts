@@ -451,6 +451,18 @@ export async function getMeta(tmdbId: number, type: StremioType) {
 		return;
 	}
 
+	m.images.logos.sort((a, b) => {
+		if (a.iso_639_1 === "en" && b.iso_639_1 !== "en") return -1;
+		if (a.iso_639_1 !== "en" && b.iso_639_1 === "en") return 1;
+		return 0;
+	});
+
+	m.images.posters.sort((a, b) => {
+		if (a.iso_639_1 === "en" && b.iso_639_1 !== "en") return -1;
+		if (a.iso_639_1 !== "en" && b.iso_639_1 === "en") return 1;
+		return 0;
+	});
+
 	let videos, imdbMovie;
 	if ("seasons" in m) {
 		const seasons = await Promise.all(
