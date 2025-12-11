@@ -446,7 +446,7 @@ export async function getTitleFromTmdbData(title: {
 
 	const highestConfidence = Math.max(...confidences);
 
-	if (highestConfidence === 0) {
+	if (highestConfidence < 10) {
 		return;
 	}
 
