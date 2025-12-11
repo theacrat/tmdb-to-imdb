@@ -1,4 +1,4 @@
-import { buildId } from "./api/firestore";
+import { buildId, MediaType, removeEntriesByTmdbTitle } from "./api/firestore";
 import { instantiateFirestore } from "./api/firestore";
 import {
 	getMovieFromTmdb,
@@ -128,6 +128,20 @@ app.get("/movie/:movie{\\d+}", async (c) => {
 			ttlDays: 1,
 		};
 	});
+});
+
+app.delete("/series/:series{\\d+}", async (c) => {
+	const { series } = c.req.param();
+
+	const result = await removeEntriesByTmdbTitle(MediaType.E, parseInt(series));
+	return c.text(`Removed ${result} entries.`);
+});
+
+app.delete("/movie/:movie{\\d+}", async (c) => {
+	const { movie } = c.req.param();
+
+	const result = await removeEntriesByTmdbTitle(MediaType.M, parseInt(movie));
+	return c.text(`Removed ${result} entries.`);
 });
 
 app.get("/manifest.json", (c) => {

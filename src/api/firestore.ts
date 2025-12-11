@@ -247,3 +247,38 @@ export async function addIdsToDatabase(
 		return match ? dbRecordToResult(match) : undefined;
 	});
 }
+
+export async function removeEntriesByTmdbTitle(
+	mediaType: MediaType,
+	titleId: number,
+): Promise<number> {
+	const query = firestore
+		.collection("tmdb_imdb")
+		.where("mediaType", "==", mediaType)
+		.where("title", "==", titleId);
+
+	const snapshot = await query.get();
+
+	if (snapshot.empty) {
+		return 0;
+	}
+
+	const firestoreBatchSize = 500;
+	const docs = snapshot.docs;
+	const batches = Array.from(
+		{ length: Math.ceil(docs.length / firestoreBatchSize) },
+		(_, i) => docs.slice(i * firestoreBatchSize, (i + 1) * firestoreBatchSize),
+	);
+
+	await Promise.all(
+		batches.map(async (batch) => {
+			const firestoreBatch = firestore.batch();
+			batch.forEach((doc) => {
+				firestoreBatch.delete(doc.ref);
+			});
+			await firestoreBatch.commit();
+		}),
+	);
+
+	return docs.length;
+}
