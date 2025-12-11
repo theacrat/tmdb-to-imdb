@@ -560,7 +560,7 @@ export async function getMeta(tmdbId: number, type: StremioType) {
 		language: m.spoken_languages.map((l) => l.english_name).join(", "),
 		country: m.production_countries?.map((c) => c.name).join(", "),
 		videos: videos,
-		website: m.homepage,
+		website: m.homepage || undefined,
 		behaviorHints: imdbMovie
 			? { defaultVideoId: imdbMovie.imdb || m.external_ids.imdb_id }
 			: undefined,

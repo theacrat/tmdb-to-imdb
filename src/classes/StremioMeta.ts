@@ -142,7 +142,7 @@ export class StremioMeta {
 				.map((li) => ({
 					name: li,
 					category: linkCategory,
-					url: "",
+					url: "stremio:///",
 				}));
 
 			this.links?.push(...newLinks);
@@ -153,6 +153,18 @@ export class StremioMeta {
 	}
 
 	private _postInit(): void {
+		if (!this.links) {
+			this.links = [];
+		}
+
+		if (this.imdbRating) {
+			this.links.push({
+				name: this.imdbRating.toString(),
+				category: "imdb",
+				url: `https://www.themoviedb.org/${this.type === StremioType.SERIES ? "tv" : "movie"}/${this.id.split(":")[1]}`,
+			});
+		}
+
 		const legacyFields: [string, string[]?][] = [
 			["Genres", this.genres],
 			["Cast", this.cast],
@@ -162,6 +174,10 @@ export class StremioMeta {
 		for (const [category, legacyField] of legacyFields) {
 			this._consolidateLinks(category, legacyField);
 		}
+
+		this.genres = undefined;
+		this.cast = undefined;
+		this.director = undefined;
 
 		if (this.poster) {
 			this.poster = `https://image.tmdb.org/t/p/original${this.poster}`;
