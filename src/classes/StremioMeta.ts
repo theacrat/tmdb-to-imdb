@@ -157,11 +157,11 @@ export class StremioMeta {
 			this.links = [];
 		}
 
-		if (this.imdbRating) {
+		if (this.imdbRating && this.imdb_id) {
 			this.links.push({
 				name: this.imdbRating.toString(),
 				category: "imdb",
-				url: `https://www.themoviedb.org/${this.type === StremioType.SERIES ? "tv" : "movie"}/${this.id.split(":")[1]}`,
+				url: `https://www.imdb.com/title/${this.imdb_id}`,
 			});
 		}
 
